@@ -1,0 +1,2748 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Orbit Lock: 사이언스 코드</title>
+<style>
+  :root {
+    --bg-deep: #060913;
+    --bg-panel: rgba(14, 22, 42, 0.85);
+    --bg-card: rgba(20, 32, 60, 0.7);
+    --border-glow: rgba(0, 229, 255, 0.35);
+    --text-main: #eef4ff;
+    --text-muted: #8ea4cc;
+    --neon-cyan: #00e5ff;
+    --neon-blue: #3b82f6;
+    --neon-purple: #a855f7;
+    --neon-pink: #ec4899;
+    --neon-green: #10b981;
+    --neon-amber: #f59e0b;
+    --neon-red: #ef4444;
+    --ring-0: #00e5ff;
+    --ring-1: #a855f7;
+    --ring-2: #ec4899;
+    --ring-3: #3b82f6;
+    --ring-4: #f59e0b;
+    --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Malgun Gothic', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-main);
+    background-color: var(--bg-deep);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.14) 0%, transparent 45%),
+      radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.14) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, #0b1124 0%, #04060d 100%);
+  }
+
+  body.mode-bio {
+    background-image:
+      radial-gradient(circle at 20% 25%, rgba(16, 185, 129, 0.14) 0%, transparent 45%),
+      radial-gradient(circle at 80% 75%, rgba(6, 182, 212, 0.14) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, #07191d 0%, #04080d 100%);
+  }
+
+  body.mode-chem {
+    background-image:
+      radial-gradient(circle at 25% 20%, rgba(236, 72, 153, 0.14) 0%, transparent 45%),
+      radial-gradient(circle at 75% 80%, rgba(245, 158, 11, 0.14) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, #170c22 0%, #05050d 100%);
+  }
+
+  /* 배경 우주 입자 효과 */
+  #bg-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1120px;
+    min-height: 100vh;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex: 1;
+    animation: fadeIn 0.35s ease;
+  }
+
+  .screen.active {
+    display: flex;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  body.reduce-motion * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* 공통 버튼 스타일 */
+  .btn {
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(59, 130, 246, 0.35));
+    border-color: var(--neon-cyan);
+  }
+
+  .btn-sm {
+    padding: 8px 14px;
+    font-size: 0.88rem;
+    border-radius: 10px;
+  }
+
+  /* 1. 시작 화면 */
+  .title-box {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .title-badge {
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    color: var(--neon-cyan);
+    font-size: 0.82rem;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+
+  .game-title {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #ffffff, #00e5ff, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
+    margin-bottom: 10px;
+  }
+
+  .game-subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+    max-width: 520px;
+    line-height: 1.5;
+    margin: 0 auto;
+  }
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 28px;
+  }
+
+  .mode-card {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 24px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .mode-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+  }
+
+  .mode-card.num::before { background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue)); }
+  .mode-card.bio::before { background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan)); }
+  .mode-card.chem::before { background: linear-gradient(90deg, var(--neon-pink), var(--neon-amber)); }
+
+  .mode-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  }
+
+  .mode-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+  }
+
+  .mode-card.num .mode-icon { background: rgba(0, 229, 255, 0.15); color: var(--neon-cyan); border: 1px solid rgba(0, 229, 255, 0.4); }
+  .mode-card.bio .mode-icon { background: rgba(16, 185, 129, 0.15); color: var(--neon-green); border: 1px solid rgba(16, 185, 129, 0.4); }
+  .mode-card.chem .mode-icon { background: rgba(236, 72, 153, 0.15); color: var(--neon-pink); border: 1px solid rgba(236, 72, 153, 0.4); }
+
+  .mode-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+  }
+
+  .mode-card p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  .mode-progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--neon-amber);
+  }
+
+  .home-footer-btns {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* 2. 스테이지 선택 화면 */
+  .stage-header {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+
+  .stage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    gap: 14px;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  .stage-item {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 16px;
+    padding: 16px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stage-item:hover:not(.locked) {
+    transform: translateY(-3px);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.3);
+  }
+
+  .stage-item.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: rgba(10, 15, 28, 0.6);
+  }
+
+  .stage-item.cleared {
+    border-color: rgba(16, 185, 129, 0.5);
+  }
+
+  .stage-num {
+    font-size: 1.35rem;
+    font-weight: 800;
+  }
+
+  .stage-tier {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+  }
+
+  .stage-stars {
+    color: var(--neon-amber);
+    font-size: 0.95rem;
+    letter-spacing: 2px;
+  }
+
+  .stage-score {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  /* 3. 게임 화면 */
+  #screen-game {
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .top-bar {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 10px 16px;
+    backdrop-filter: blur(10px);
+  }
+
+  .top-left, .top-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .stage-badge {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--neon-cyan);
+  }
+
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 5px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    min-width: 74px;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  .stat-value {
+    font-size: 0.98rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .game-workspace {
+    width: 100%;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 330px;
+    gap: 16px;
+    align-items: center;
+  }
+
+  @media (max-width: 880px) {
+    .game-workspace {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* 원형 퍼즐 보드 영역 */
+  .board-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .orbit-board {
+    position: relative;
+    width: min(88vw, 490px);
+    height: min(88vw, 490px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+
+  /* 방향 섹터 하이라이트 */
+  .sector-line {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 41%;
+    height: 4px;
+    transform-origin: 0% 50%;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 4px;
+    pointer-events: none;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    z-index: 1;
+  }
+
+  .sector-line.solved {
+    background: rgba(16, 185, 129, 0.65);
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.85);
+  }
+
+  /* 동심원 고리 */
+  .orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    pointer-events: none;
+  }
+
+  .orbit-ring.selected {
+    border-width: 3px;
+    border-color: var(--ring-color, var(--neon-cyan));
+    box-shadow:
+      0 0 18px var(--ring-color, var(--neon-cyan)),
+      inset 0 0 14px rgba(255, 255, 255, 0.12);
+  }
+
+  .orbit-ring.hint-glow {
+    animation: hintPulse 1s infinite alternate;
+  }
+
+  @keyframes hintPulse {
+    from {
+      box-shadow: 0 0 10px var(--neon-amber), inset 0 0 8px var(--neon-amber);
+      border-color: var(--neon-amber);
+    }
+    to {
+      box-shadow: 0 0 28px var(--neon-amber), inset 0 0 18px var(--neon-amber);
+      border-color: #fff;
+    }
+  }
+
+  /* 고리 회전 레이어 */
+  .ring-rotor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .ring-rotor.spinning {
+    filter: drop-shadow(0 0 8px var(--ring-color, rgba(0, 229, 255, 0.6)));
+  }
+
+  /* 고리 위 칸 (노드) */
+  .ring-cell {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin-left: -20px;
+    margin-top: -20px;
+    border-radius: 50%;
+    background: rgba(11, 18, 36, 0.94);
+    border: 2px solid var(--ring-color, var(--neon-cyan));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.98rem;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+    pointer-events: auto;
+    cursor: pointer;
+    transition: border-color 0.25s, background-color 0.25s, box-shadow 0.25s;
+  }
+
+  .ring-cell.selected-ring {
+    box-shadow: 0 0 12px var(--ring-color, var(--neon-cyan));
+  }
+
+  .ring-cell.solved-cell {
+    background: rgba(6, 78, 59, 0.95);
+    border-color: var(--neon-green);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.7);
+  }
+
+  .ring-cell-inner {
+    display: inline-block;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    line-height: 1;
+  }
+
+  /* 중앙 코어 자물쇠 */
+  .center-core {
+    position: absolute;
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #172546 0%, #090f20 100%);
+    border: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 22px rgba(0, 229, 255, 0.45);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--neon-cyan);
+    text-align: center;
+    transition: all 0.4s ease;
+  }
+
+  .center-core.unlocked {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    box-shadow: 0 0 36px var(--neon-green);
+    transform: scale(1.12);
+  }
+
+  /* 바깥쪽 방향별 목표 배지 */
+  .target-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(12, 20, 40, 0.95);
+    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    padding: 5px 8px;
+    min-width: 68px;
+    max-width: 96px;
+    text-align: center;
+    z-index: 6;
+    font-size: 0.76rem;
+    line-height: 1.25;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .target-badge:hover {
+    transform: translate(-50%, -50%) scale(1.06);
+    border-color: var(--neon-cyan);
+  }
+
+  .target-badge.solved {
+    background: rgba(6, 78, 59, 0.94);
+    border-color: var(--neon-green);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.75);
+  }
+
+  .target-badge.low {
+    border-color: rgba(59, 130, 246, 0.75);
+  }
+
+  .target-badge.high {
+    border-color: rgba(239, 68, 68, 0.8);
+  }
+
+  .target-main {
+    font-weight: 800;
+    font-size: 0.82rem;
+    display: block;
+    white-space: nowrap;
+  }
+
+  .target-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: block;
+  }
+
+  .val-ok { color: #34d399; font-weight: 700; }
+  .val-low { color: #60a5fa; font-weight: 700; }
+  .val-high { color: #f87171; font-weight: 700; }
+
+  .aug-tag {
+    display: inline-block;
+    font-size: 0.62rem;
+    background: rgba(245, 158, 11, 0.25);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    border-radius: 4px;
+    padding: 0 3px;
+    margin-left: 2px;
+  }
+
+  /* 우측 조작 패널 */
+  .control-panel {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    backdrop-filter: blur(10px);
+  }
+
+  .panel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ring-controls-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ring-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .ring-control-row.selected {
+    border-color: var(--ring-color, var(--neon-cyan));
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.18);
+  }
+
+  .ring-control-row.hint-target {
+    border-color: var(--neon-amber);
+    background: rgba(245, 158, 11, 0.15);
+  }
+
+  .ring-label-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ring-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--ring-color, var(--neon-cyan));
+    box-shadow: 0 0 8px var(--ring-color, var(--neon-cyan));
+  }
+
+  .ring-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .ring-rot-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .rot-btn {
+    width: 38px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .rot-btn:hover {
+    background: var(--neon-cyan);
+    color: #040812;
+    border-color: var(--neon-cyan);
+  }
+
+  .rot-btn:active {
+    transform: scale(0.92);
+  }
+
+  .action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .hint-banner {
+    background: rgba(245, 158, 11, 0.14);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fcd34d;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 0.84rem;
+    line-height: 1.4;
+    display: none;
+  }
+
+  .hint-banner.active {
+    display: block;
+  }
+
+  .key-guide {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  /* 모달 / 팝업 */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 6, 16, 0.82);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.22s ease;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+  }
+
+  .modal-box {
+    background: #0e172e;
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    border-radius: 22px;
+    padding: 24px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
+    position: relative;
+  }
+
+  .modal-box.wide {
+    max-width: 780px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .modal-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--neon-cyan);
+  }
+
+  .close-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #fff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  /* 클리어 모달 전용 */
+  .clear-stars {
+    font-size: 2.6rem;
+    color: var(--neon-amber);
+    text-align: center;
+    margin: 8px 0 16px;
+    text-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+    letter-spacing: 6px;
+  }
+
+  .clear-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .clear-stat-card {
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .clear-stat-card span {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .clear-stat-card strong {
+    font-size: 1.15rem;
+    color: #fff;
+  }
+
+  .science-fact-box {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 20px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: #d1fae5;
+  }
+
+  .science-fact-box strong {
+    display: block;
+    color: var(--neon-green);
+    margin-bottom: 4px;
+    font-size: 0.82rem;
+  }
+
+  .clear-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .clear-actions .btn {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* 코돈표 그리드 */
+  .codon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .codon-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+
+  .codon-aa {
+    font-weight: 700;
+    color: var(--neon-green);
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+
+  .codon-aa.stop {
+    color: var(--neon-red);
+  }
+
+  .codon-list {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+
+  /* 게임 방법 탭 */
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .tab-btn.active {
+    background: rgba(0, 229, 255, 0.2);
+    border-color: var(--neon-cyan);
+    color: #fff;
+  }
+
+  .help-content {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #dbe7ff;
+  }
+
+  .help-content h4 {
+    color: var(--neon-cyan);
+    margin: 12px 0 6px;
+  }
+
+  .help-content ul {
+    padding-left: 18px;
+    margin-bottom: 10px;
+  }
+
+  .help-example {
+    background: rgba(0, 0, 0, 0.35);
+    border-left: 3px solid var(--neon-cyan);
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin: 10px 0;
+    font-size: 0.86rem;
+  }
+
+  /* 설정 스위치 */
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.25s;
+  }
+
+  .toggle-switch.on {
+    background: var(--neon-cyan);
+  }
+
+  .toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.25s;
+  }
+
+  .toggle-switch.on .toggle-knob {
+    transform: translateX(22px);
+  }
+
+  /* 토스트 알림 */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid var(--neon-cyan);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s ease;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="app-container">
+
+  <!-- 1. 시작 화면 -->
+  <section id="screen-home" class="screen active">
+    <div class="title-box">
+      <div class="title-badge">SCIENCE LOGIC PUZZLE</div>
+      <h1 class="game-title">Orbit Lock: 사이언스 코드</h1>
+      <p class="game-subtitle">동심원 궤도를 회전시켜 모든 방향의 과학적 암호를 동시에 해제하세요.</p>
+    </div>
+
+    <div class="mode-grid">
+      <div class="mode-card num" onclick="openStageSelect('num')">
+        <div>
+          <div class="mode-icon">∑</div>
+          <h3>숫자 모드</h3>
+          <p>각 방향에 놓인 고리의 숫자 합계를 목표치와 정확히 일치시키는 수리 논리 자물쇠입니다.</p>
+        </div>
+        <div class="mode-progress">
+          <span id="prog-num-stage">클리어: 0 / 20</span>
+          <span id="prog-num-stars">★ 0 / 60</span>
+        </div>
+      </div>
+
+      <div class="mode-card bio" onclick="openStageSelect('bio')">
+        <div>
+          <div class="mode-icon">DNA</div>
+          <h3>생명과학 모드</h3>
+          <p>안쪽에서 바깥쪽으로 mRNA 염기 서열(코돈)을 정렬해 목표 아미노산을 합성하세요.</p>
+        </div>
+        <div class="mode-progress">
+          <span id="prog-bio-stage">클리어: 0 / 20</span>
+          <span id="prog-bio-stars">★ 0 / 60</span>
+        </div>
+      </div>
+
+      <div class="mode-card chem" onclick="openStageSelect('chem')">
+        <div>
+          <div class="mode-icon">Ion</div>
+          <h3>화학 모드</h3>
+          <p>양이온과 음이온의 전하량과 개수비를 맞춰 전기적으로 중성인 이온 결합 화합물을 완성하세요.</p>
+        </div>
+        <div class="mode-progress">
+          <span id="prog-chem-stage">클리어: 0 / 20</span>
+          <span id="prog-chem-stars">★ 0 / 60</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-footer-btns">
+      <button class="btn" onclick="openModal('modal-help')">📘 게임 방법</button>
+      <button class="btn" onclick="openModal('modal-settings')">⚙️ 설정</button>
+    </div>
+  </section>
+
+  <!-- 2. 스테이지 선택 화면 -->
+  <section id="screen-stages" class="screen">
+    <div class="stage-header">
+      <button class="btn btn-sm" onclick="showScreen('screen-home')">← 메인 화면</button>
+      <h2 id="stage-select-title" style="font-size: 1.4rem;">숫자 모드 - 스테이지 선택</h2>
+      <div style="width: 90px;"></div>
+    </div>
+    <div id="stage-grid" class="stage-grid"></div>
+  </section>
+
+  <!-- 3. 게임 화면 -->
+  <section id="screen-game" class="screen">
+    <div class="top-bar">
+      <div class="top-left">
+        <button class="btn btn-sm" onclick="confirmExitToMenu()">← 메인</button>
+        <span id="hud-mode-stage" class="stage-badge">숫자 모드 · STAGE 1</span>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat-pill">
+          <span class="stat-label">이동 횟수</span>
+          <span id="hud-moves" class="stat-value">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">경과 시간</span>
+          <span id="hud-time" class="stat-value">00:00</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">예상 점수</span>
+          <span id="hud-score" class="stat-value">1000</span>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <button id="btn-codon-table" class="btn btn-sm" style="display:none;" onclick="openModal('modal-codon')">🧬 코돈표 보기</button>
+        <button class="btn btn-sm" onclick="pauseGame()">⏸ 일시정지</button>
+      </div>
+    </div>
+
+    <div class="game-workspace">
+      <!-- 중앙 원형 고리 퍼즐 -->
+      <div class="board-wrapper">
+        <div id="orbit-board" class="orbit-board"></div>
+      </div>
+
+      <!-- 우측 조작 및 정보 패널 -->
+      <aside class="control-panel">
+        <div class="panel-title">
+          <span>궤도 제어 장치</span>
+          <span id="hud-tier-info" style="font-size: 0.78rem; color: var(--neon-cyan);">입문 단계</span>
+        </div>
+
+        <div id="ring-controls-list" class="ring-controls-list"></div>
+
+        <div id="hint-banner" class="hint-banner"></div>
+
+        <div class="action-buttons">
+          <button id="btn-hint" class="btn btn-sm" onclick="useHint()">💡 힌트 (<span id="hint-count">3</span>)</button>
+          <button id="btn-undo" class="btn btn-sm" onclick="undoMove()">↩ 실행 취소<span id="undo-limit-text"></span></button>
+          <button class="btn btn-sm" onclick="restartStage()">🔄 다시 시작</button>
+          <button class="btn btn-sm" onclick="openModal('modal-help')">❓ 규칙 도움말</button>
+        </div>
+
+        <div class="key-guide">
+          드래그/스와이프 또는 버튼으로 회전 · 키보드 [1~5] 고리 선택, [←/→] 회전
+        </div>
+      </aside>
+    </div>
+  </section>
+
+</div>
+
+<!-- 4. 스테이지 클리어 팝업 -->
+<div id="modal-clear" class="modal-overlay">
+  <div class="modal-box" style="text-align: center;">
+    <div class="title-badge" style="border-color: var(--neon-green); color: var(--neon-green); background: rgba(16,185,129,0.15);">ORBIT UNLOCKED</div>
+    <h2 style="font-size: 1.7rem; margin-bottom: 4px;">스테이지 클리어!</h2>
+    <div id="clear-stars" class="clear-stars">★★★</div>
+
+    <div class="clear-stats">
+      <div class="clear-stat-card">
+        <span>최종 점수</span>
+        <strong id="clear-score">1250</strong>
+      </div>
+      <div class="clear-stat-card">
+        <span>이동 횟수</span>
+        <strong id="clear-moves">5회</strong>
+      </div>
+      <div class="clear-stat-card">
+        <span>걸린 시간</span>
+        <strong id="clear-time">00:24</strong>
+      </div>
+    </div>
+
+    <div id="clear-fact-box" class="science-fact-box" style="text-align: left;">
+      <strong>🔬 사이언스 노트</strong>
+      <span id="clear-fact-text"></span>
+    </div>
+
+    <div class="clear-actions">
+      <button class="btn" onclick="closeModal('modal-clear'); restartStage();">다시 하기</button>
+      <button class="btn" onclick="closeModal('modal-clear'); openStageSelect(gameState.mode);">스테이지 선택</button>
+      <button id="btn-next-stage" class="btn btn-primary" onclick="nextStage()">다음 스테이지 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 일시정지 팝업 -->
+<div id="modal-pause" class="modal-overlay">
+  <div class="modal-box" style="text-align: center; max-width: 380px;">
+    <h2 class="modal-title" style="margin-bottom: 12px;">⏸ 일시정지</h2>
+    <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.92rem;">시간 측정이 일시 중단되었습니다.</p>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button class="btn btn-primary" onclick="resumeGame()">▶ 계속하기</button>
+      <button class="btn" onclick="closeModal('modal-pause'); restartStage();">🔄 현재 스테이지 다시 시작</button>
+      <button class="btn" onclick="closeModal('modal-pause'); openStageSelect(gameState.mode);">📋 스테이지 목록</button>
+      <button class="btn" onclick="closeModal('modal-pause'); showScreen('screen-home');">🏠 메인 화면</button>
+    </div>
+  </div>
+</div>
+
+<!-- 5. 게임 방법 팝업 -->
+<div id="modal-help" class="modal-overlay">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 class="modal-title">📘 게임 방법 및 과학 규칙</h3>
+      <button class="close-btn" onclick="closeModal('modal-help')">✕</button>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchHelpTab('common', this)">기본 조작</button>
+      <button class="tab-btn" onclick="switchHelpTab('num', this)">숫자 모드</button>
+      <button class="tab-btn" onclick="switchHelpTab('bio', this)">생명과학 모드</button>
+      <button class="tab-btn" onclick="switchHelpTab('chem', this)">화학 모드</button>
+    </div>
+
+    <div id="help-body" class="help-content"></div>
+  </div>
+</div>
+
+<!-- 코돈표 팝업 (생명과학 모드) -->
+<div id="modal-codon" class="modal-overlay">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h3 class="modal-title">🧬 표준 mRNA 유전 암호표</h3>
+      <button class="close-btn" onclick="closeModal('modal-codon')">✕</button>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+      안쪽 고리(첫 번째 염기) → 가운데 고리(두 번째 염기) → 바깥쪽 고리(세 번째 염기) 순서로 읽습니다.
+    </p>
+    <div id="codon-table-container" class="codon-grid"></div>
+  </div>
+</div>
+
+<!-- 설정 팝업 -->
+<div id="modal-settings" class="modal-overlay">
+  <div class="modal-box" style="max-width: 420px;">
+    <div class="modal-header">
+      <h3 class="modal-title">⚙️ 환경 설정</h3>
+      <button class="close-btn" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div style="font-weight: 700;">효과음 (Web Audio)</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">고리 회전 및 클리어 사운드</div>
+      </div>
+      <div id="toggle-sound" class="toggle-switch on" onclick="toggleSetting('sound')">
+        <div class="toggle-knob"></div>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div style="font-weight: 700;">애니메이션 감소</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">회전 및 배경 입자 움직임 최소화</div>
+      </div>
+      <div id="toggle-motion" class="toggle-switch" onclick="toggleSetting('reduceMotion')">
+        <div class="toggle-knob"></div>
+      </div>
+    </div>
+
+    <div class="setting-row" style="border-bottom: none;">
+      <div>
+        <div style="font-weight: 700; color: var(--neon-red);">진행 데이터 초기화</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">모든 모드의 별과 최고 점수를 초기화합니다.</div>
+      </div>
+      <button class="btn btn-sm" style="border-color: var(--neon-red); color: var(--neon-red);" onclick="resetAllProgress()">초기화</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* ==========================================================================
+   1. 과학 데이터 및 상수 정의
+   ========================================================================== */
+const RING_COLORS = ['#00e5ff', '#a855f7', '#ec4899', '#3b82f6', '#f59e0b'];
+
+// 표준 유전 암호표 (64개 mRNA 코돈 정확 매핑)
+const CODON_TO_AA = {
+  UUU: '페닐알라닌', UUC: '페닐알라닌',
+  UUA: '류신', UUG: '류신', CUU: '류신', CUC: '류신', CUA: '류신', CUG: '류신',
+  AUU: '아이소류신', AUC: '아이소류신', AUA: '아이소류신',
+  AUG: '메싸이오닌',
+  GUU: '발린', GUC: '발린', GUA: '발린', GUG: '발린',
+  UCU: '세린', UCC: '세린', UCA: '세린', UCG: '세린', AGU: '세린', AGC: '세린',
+  CCU: '프롤린', CCC: '프롤린', CCA: '프롤린', CCG: '프롤린',
+  ACU: '트레오닌', ACC: '트레오닌', ACA: '트레오닌', ACG: '트레오닌',
+  GCU: '알라닌', GCC: '알라닌', GCA: '알라닌', GCG: '알라닌',
+  UAU: '타이로신', UAC: '타이로신',
+  UAA: '종결', UAG: '종결', UGA: '종결',
+  CAU: '히스티딘', CAC: '히스티딘',
+  CAA: '글루타민', CAG: '글루타민',
+  AAU: '아스파라진', AAC: '아스파라진',
+  AAA: '라이신', AAG: '라이신',
+  GAU: '아스파트산', GAC: '아스파트산',
+  GAA: '글루탐산', GAG: '글루탐산',
+  UGU: '시스테인', UGC: '시스테인',
+  UGG: '트립토판',
+  CGU: '아르지닌', CGC: '아르지닌', CGA: '아르지닌', CGG: '아르지닌', AGA: '아르지닌', AGG: '아르지닌',
+  GGU: '글라이신', GGC: '글라이신', GGA: '글라이신', GGG: '글라이신'
+};
+
+// 화학 모드 이온 데이터
+const CATIONS = [
+  { label: 'Na⁺', symbol: 'Na', charge: 1 },
+  { label: 'K⁺', symbol: 'K', charge: 1 },
+  { label: 'Mg²⁺', symbol: 'Mg', charge: 2 },
+  { label: 'Ca²⁺', symbol: 'Ca', charge: 2 },
+  { label: 'Al³⁺', symbol: 'Al', charge: 3 }
+];
+
+const ANIONS = [
+  { label: 'Cl⁻', symbol: 'Cl', charge: -1 },
+  { label: 'F⁻', symbol: 'F', charge: -1 },
+  { label: 'O²⁻', symbol: 'O', charge: -2 },
+  { label: 'S²⁻', symbol: 'S', charge: -2 },
+  { label: 'N³⁻', symbol: 'N', charge: -3 }
+];
+
+// 클리어 교육 메시지
+const SCIENCE_FACTS = {
+  num: [
+    '여러 조건이 동시에 얽힌 연립 퍼즐에서는 변화가 가장 큰 고리부터 기준을 잡으면 풀기 쉽습니다.',
+    '각 고리를 한 칸 회전할 때마다 모든 방향의 합계가 동시에 일정 규칙으로 변합니다.',
+    '목표 합계와 현재 합계의 차이(편차)를 비교하면 어떤 고리를 돌려야 할지 추론할 수 있습니다.'
+  ],
+  bio: [
+    'mRNA 코돈은 세 개의 염기로 이루어진다.',
+    'mRNA에서는 타이민 T 대신 유라실 U가 사용된다.',
+    '여러 코돈이 같은 아미노산을 지정할 수 있다.',
+    'AUG는 메싸이오닌을 지정한다.',
+    'UAA, UAG, UGA는 종결 코돈이다.'
+  ],
+  chem: [
+    '이온 결합 화합물은 전체 전하가 0이 되도록 결합한다.',
+    '화학식의 아래 첨자는 원소의 개수비를 나타낸다.',
+    '전하량과 아래 첨자는 서로 다른 의미를 가진다.',
+    '화합물의 화학식은 가장 간단한 정수비로 나타낸다.'
+  ]
+};
+
+/* ==========================================================================
+   2. 로컬 스토리지 저장 및 설정 관리
+   ========================================================================== */
+const STORAGE_KEY = 'orbit_lock_science_v1';
+
+let userData = {
+  settings: {
+    sound: true,
+    reduceMotion: false
+  },
+  progress: {
+    num: { unlocked: 1, stages: {} },
+    bio: { unlocked: 1, stages: {} },
+    chem: { unlocked: 1, stages: {} }
+  }
+};
+
+/** localStorage에서 사용자 진행 상황과 설정을 불러옵니다. */
+function loadUserData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.settings) Object.assign(userData.settings, parsed.settings);
+      if (parsed.progress) {
+        ['num', 'bio', 'chem'].forEach(m => {
+          if (parsed.progress[m]) {
+            userData.progress[m].unlocked = parsed.progress[m].unlocked || 1;
+            userData.progress[m].stages = parsed.progress[m].stages || {};
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('저장 데이터를 불러오는 중 오류가 발생했습니다.', e);
+  }
+  applySettingsUI();
+  updateHomeProgressUI();
+}
+
+/** localStorage에 사용자 진행 상황과 설정을 저장합니다. */
+function saveUserData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+  } catch (e) {
+    console.warn('데이터 저장 실패:', e);
+  }
+}
+
+function applySettingsUI() {
+  const soundToggle = document.getElementById('toggle-sound');
+  const motionToggle = document.getElementById('toggle-motion');
+  if (soundToggle) soundToggle.classList.toggle('on', userData.settings.sound);
+  if (motionToggle) motionToggle.classList.toggle('on', userData.settings.reduceMotion);
+  document.body.classList.toggle('reduce-motion', userData.settings.reduceMotion);
+}
+
+function toggleSetting(key) {
+  userData.settings[key] = !userData.settings[key];
+  saveUserData();
+  applySettingsUI();
+  if (key === 'sound' && userData.settings.sound) {
+    SoundFX.init();
+    SoundFX.playRotate();
+  }
+}
+
+function resetAllProgress() {
+  if (!confirm('정말로 모든 스테이지 기록과 점수를 초기화하시겠습니까?')) return;
+  userData.progress = {
+    num: { unlocked: 1, stages: {} },
+    bio: { unlocked: 1, stages: {} },
+    chem: { unlocked: 1, stages: {} }
+  };
+  saveUserData();
+  updateHomeProgressUI();
+  showToast('모든 진행 데이터가 초기화되었습니다.');
+}
+
+/* ==========================================================================
+   3. Web Audio API 효과음 생성기 (외부 음원 불필요)
+   ========================================================================== */
+const SoundFX = {
+  ctx: null,
+  unlocked: false,
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+    this.unlocked = true;
+  },
+
+  playTone(freq, type, duration, gainVal = 0.08, delay = 0) {
+    if (!userData.settings.sound || !this.unlocked || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime + delay;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(gainVal, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + duration);
+    } catch (e) {}
+  },
+
+  playRotate() {
+    this.playTone(420, 'sine', 0.09, 0.07);
+    this.playTone(620, 'triangle', 0.06, 0.04, 0.02);
+  },
+
+  playMatch() {
+    this.playTone(587.33, 'sine', 0.16, 0.08);
+    this.playTone(880, 'sine', 0.22, 0.08, 0.07);
+  },
+
+  playClear() {
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((n, idx) => {
+      this.playTone(n, 'triangle', 0.35, 0.1, idx * 0.09);
+    });
+  }
+};
+
+document.addEventListener('pointerdown', () => SoundFX.init(), { once: true });
+
+/* ==========================================================================
+   4. 시드 기반 의사 난수 생성기 (스테이지별 고정 퍼즐 보장)
+   ========================================================================== */
+function createSeededRNG(seedNumber) {
+  let state = seedNumber % 2147483647;
+  if (state <= 0) state += 2147483646;
+  return function () {
+    state = (state * 16807) % 2147483647;
+    return (state - 1) / 2147483646;
+  };
+}
+
+function getModeSeedOffset(mode) {
+  if (mode === 'num') return 1013;
+  if (mode === 'bio') return 2027;
+  return 3037;
+}
+
+/* ==========================================================================
+   5. 게임 상태 및 스테이지 설정
+   ========================================================================== */
+let gameState = {
+  mode: 'num',          // 'num' | 'bio' | 'chem'
+  stage: 1,             // 1 ~ 20
+  ringCount: 3,
+  sectorCount: 6,
+  rings: [],            // 각 고리의 데이터 배열 (안쪽 index 0 -> 바깥쪽)
+  ringNames: [],
+  initialOffsets: [],   // 다시 시작용 초기 회전 오프셋
+  offsets: [],          // 현재 각 고리의 논리 오프셋 (0 ~ sectorCount-1)
+  visualSteps: [],      // 연속 회전 애니메이션용 누적 스텝
+  solutionOffsets: [],  // 생성 시 기준 정답 오프셋
+  targets: [],          // 방향별 목표 조건
+  revealedSectors: [],  // 고난도에서 숨김 정보 클릭 공개 여부
+  selectedRing: 0,
+  moves: 0,
+  undoCount: 0,
+  maxUndos: Infinity,
+  hintsLeft: 3,
+  activeHintRing: -1,
+  activeHintDir: 0,
+  history: [],
+  elapsedSeconds: 0,
+  timerId: null,
+  paused: false,
+  isCleared: false,
+  parMoves: 6
+};
+
+/** 스테이지 번호(1~20)에 따른 난이도 파라미터를 반환합니다. */
+function getStageConfig(mode, stage) {
+  let sectorCount = 6;
+  let ringCount = 3;
+  let hints = 3;
+  let maxUndos = Infinity;
+  let hideInfo = false;
+  let tierName = '1단계 구역 · 입문';
+
+  if (stage <= 5) {
+    sectorCount = 6;
+    ringCount = mode === 'num' ? 3 : (mode === 'bio' ? 3 : 4);
+    hints = 3;
+    tierName = '입문 구역 (상세 표시)';
+  } else if (stage <= 10) {
+    sectorCount = 8;
+    ringCount = mode === 'num' ? 4 : (mode === 'bio' ? 3 : 4);
+    hints = 2;
+    tierName = '응용 구역 (방향 확장)';
+  } else if (stage <= 15) {
+    sectorCount = 8;
+    ringCount = mode === 'num' ? 4 : (mode === 'bio' ? 3 : 4);
+    hints = 1;
+    hideInfo = true;
+    tierName = '심화 구역 (일부 정보 은닉)';
+  } else {
+    sectorCount = 8;
+    ringCount = mode === 'num' ? 5 : (mode === 'bio' ? 3 : 4);
+    hints = 1;
+    hideInfo = true;
+    maxUndos = 5;
+    tierName = '마스터 구역 (제한된 실행 취소)';
+  }
+
+  return { sectorCount, ringCount, hints, maxUndos, hideInfo, tierName };
+}
+
+/* ==========================================================================
+   6. 퍼즐 생성 엔진 (모드별 분리)
+   ========================================================================== */
+
+/** 최대공약수 계산 */
+function gcd(a, b) {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b !== 0) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a;
+}
+
+/**
+ * 스테이지 번호와 모드를 시드로 사용하여 항상 풀 수 있고 처음부터 정답이 아닌 퍼즐을 생성합니다.
+ */
+function generatePuzzle(mode, stage) {
+  const cfg = getStageConfig(mode, stage);
+  const rng = createSeededRNG(stage * 9973 + getModeSeedOffset(mode));
+  const S = cfg.sectorCount;
+  const R = cfg.ringCount;
+
+  let rings = [];
+  let targets = [];
+  let ringNames = [];
+
+  if (mode === 'num') {
+    ringNames = ['내부 고리', '제2 고리', '제3 고리', '제4 고리', '외부 고리'].slice(0, R);
+    for (let r = 0; r < R; r++) {
+      const arr = [];
+      for (let s = 0; s < S; s++) {
+        arr.push(Math.floor(rng() * 9) + 1);
+      }
+      rings.push(arr);
+    }
+    // 완성 상태(오프셋 0) 기준으로 각 방향 목표 합계 계산
+    for (let s = 0; s < S; s++) {
+      let sum = 0;
+      for (let r = 0; r < R; r++) sum += rings[r][s];
+      targets.push({ targetSum: sum });
+    }
+  } else if (mode === 'bio') {
+    ringNames = ['1번 염기 (안쪽)', '2번 염기 (가운데)', '3번 염기 (바깥)'];
+    const bases = ['A', 'U', 'G', 'C'];
+    // 각 고리에 A, U, G, C가 골고루 들어가도록 배치
+    for (let r = 0; r < 3; r++) {
+      const arr = [];
+      for (let s = 0; s < S; s++) {
+        arr.push(bases[Math.floor(rng() * 4)]);
+      }
+      rings.push(arr);
+    }
+    // 완성 상태 기준 목표 아미노산 계산
+    for (let s = 0; s < S; s++) {
+      const codon = rings[0][s] + rings[1][s] + rings[2][s];
+      targets.push({ targetAA: CODON_TO_AA[codon] });
+    }
+  } else if (mode === 'chem') {
+    ringNames = ['양이온', '양이온 개수', '음이온', '음이온 개수'];
+    const r0 = [], r1 = [], r2 = [], r3 = [];
+    for (let s = 0; s < S; s++) {
+      const cat = CATIONS[Math.floor(rng() * CATIONS.length)];
+      const ani = ANIONS[Math.floor(rng() * ANIONS.length)];
+      const g = gcd(cat.charge, Math.abs(ani.charge));
+      const catCount = Math.abs(ani.charge) / g;
+      const aniCount = cat.charge / g;
+
+      r0.push(cat);
+      r1.push(catCount);
+      r2.push(ani);
+      r3.push(aniCount);
+      targets.push({ neutral: true });
+    }
+    rings = [r0, r1, r2, r3];
+  }
+
+  // 정답 오프셋은 모두 0인 상태에서 출발하여 무작위로 섞음
+  const solutionOffsets = new Array(R).fill(0);
+  const shuffleSteps = stage <= 5 ? 3 : (stage <= 10 ? 5 : (stage <= 15 ? 7 : 9));
+
+  let offsets = new Array(R).fill(0);
+  let attempts = 0;
+  do {
+    offsets = new Array(R).fill(0);
+    for (let step = 0; step < shuffleSteps; step++) {
+      const rIdx = Math.floor(rng() * R);
+      const delta = rng() < 0.5 ? 1 : -1;
+      offsets[rIdx] = (offsets[rIdx] + delta + S) % S;
+    }
+    attempts++;
+    // 혹시라도 모든 방향이 이미 정답이거나 오프셋이 모두 0이면 다시 섞음
+  } while (
+    attempts < 40 &&
+    (offsets.every(o => o === 0) || checkAllSectorsSolvedWithOffsets(mode, rings, targets, offsets, S))
+  );
+
+  // 최악의 경우 첫 번째 고리를 강제로 1칸 회전
+  if (checkAllSectorsSolvedWithOffsets(mode, rings, targets, offsets, S)) {
+    offsets[0] = (offsets[0] + 1) % S;
+  }
+
+  // 최소 회전 이동 횟수(권장 이동 횟수) 계산
+  let minMoves = 0;
+  for (let r = 0; r < R; r++) {
+    const diff = offsets[r] % S;
+    minMoves += Math.min(diff, S - diff);
+  }
+  const parMoves = Math.max(2, minMoves + (stage <= 5 ? 2 : (stage <= 10 ? 1 : 0)));
+
+  // 11단계 이상에서는 일부 방향의 상세 보조 정보를 클릭 전까지 가림
+  const revealedSectors = new Array(S).fill(!cfg.hideInfo);
+  if (cfg.hideInfo) {
+    const visibleCount = stage <= 15 ? Math.ceil(S / 2) : 2;
+    for (let i = 0; i < visibleCount; i++) {
+      const idx = Math.floor(rng() * S);
+      revealedSectors[idx] = true;
+    }
+  }
+
+  return {
+    cfg,
+    rings,
+    ringNames,
+    targets,
+    solutionOffsets,
+    offsets,
+    parMoves,
+    revealedSectors
+  };
+}
+
+/* ==========================================================================
+   7. 판정 및 과학 계산 로직
+   ========================================================================== */
+
+/** 특정 고리 r의 현재 방향 s에 위치한 원소를 반환합니다. */
+function getCellAt(rings, offsets, r, s, S) {
+  const idx = (s - offsets[r] + S * 10) % S;
+  return rings[r][idx];
+}
+
+/** 화학식 포맷 생성 (개수 1 생략, HTML sub 태그 적용) */
+function formatChemicalFormula(catSymbol, catCount, aniSymbol, aniCount) {
+  const cSub = catCount > 1 ? `<sub>${catCount}</sub>` : '';
+  const aSub = aniCount > 1 ? `<sub>${aniCount}</sub>` : '';
+  return `${catSymbol}${cSub}${aniSymbol}${aSub}`;
+}
+
+/** 단일 방향(sector)의 현재 상태와 정답 여부를 계산합니다. */
+function evaluateSector(mode, rings, targets, offsets, s, S) {
+  if (mode === 'num') {
+    let sum = 0;
+    for (let r = 0; r < rings.length; r++) {
+      sum += getCellAt(rings, offsets, r, s, S);
+    }
+    const targetSum = targets[s].targetSum;
+    return {
+      solved: sum === targetSum,
+      currentSum: sum,
+      targetSum: targetSum,
+      status: sum === targetSum ? 'ok' : (sum < targetSum ? 'low' : 'high')
+    };
+  } else if (mode === 'bio') {
+    const b1 = getCellAt(rings, offsets, 0, s, S);
+    const b2 = getCellAt(rings, offsets, 1, s, S);
+    const b3 = getCellAt(rings, offsets, 2, s, S);
+    const codon = b1 + b2 + b3;
+    const aa = CODON_TO_AA[codon] || '알 수 없음';
+    const targetAA = targets[s].targetAA;
+    return {
+      solved: aa === targetAA,
+      codon,
+      currentAA: aa,
+      targetAA,
+      isAUG: codon === 'AUG'
+    };
+  } else {
+    // 화학 모드
+    const cat = getCellAt(rings, offsets, 0, s, S);
+    const catCount = getCellAt(rings, offsets, 1, s, S);
+    const ani = getCellAt(rings, offsets, 2, s, S);
+    const aniCount = getCellAt(rings, offsets, 3, s, S);
+
+    const posCharge = cat.charge * catCount;
+    const negCharge = ani.charge * aniCount; // 음수
+    const netCharge = posCharge + negCharge;
+    const isSimplestRatio = gcd(catCount, aniCount) === 1;
+    const solved = (netCharge === 0) && isSimplestRatio;
+    const formulaHTML = formatChemicalFormula(cat.symbol, catCount, ani.symbol, aniCount);
+
+    return {
+      solved,
+      netCharge,
+      isSimplestRatio,
+      formulaHTML
+    };
+  }
+}
+
+/** 주어진 오프셋 상태에서 모든 방향이 정답인지 확인합니다. */
+function checkAllSectorsSolvedWithOffsets(mode, rings, targets, offsets, S) {
+  for (let s = 0; s < S; s++) {
+    if (!evaluateSector(mode, rings, targets, offsets, s, S).solved) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* ==========================================================================
+   8. 스테이지 시작, 회전 조작, 힌트, 실행 취소, 점수 계산
+   ========================================================================== */
+
+function startStage(mode, stage) {
+  stopTimer();
+  const puzzle = generatePuzzle(mode, stage);
+
+  gameState.mode = mode;
+  gameState.stage = stage;
+  gameState.ringCount = puzzle.cfg.ringCount;
+  gameState.sectorCount = puzzle.cfg.sectorCount;
+  gameState.rings = puzzle.rings;
+  gameState.ringNames = puzzle.ringNames;
+  gameState.targets = puzzle.targets;
+  gameState.solutionOffsets = [...puzzle.solutionOffsets];
+  gameState.initialOffsets = [...puzzle.offsets];
+  gameState.offsets = [...puzzle.offsets];
+  gameState.visualSteps = [...puzzle.offsets];
+  gameState.revealedSectors = [...puzzle.revealedSectors];
+  gameState.selectedRing = 0;
+  gameState.moves = 0;
+  gameState.undoCount = 0;
+  gameState.maxUndos = puzzle.cfg.maxUndos;
+  gameState.hintsLeft = puzzle.cfg.hints;
+  gameState.activeHintRing = -1;
+  gameState.activeHintDir = 0;
+  gameState.history = [];
+  gameState.elapsedSeconds = 0;
+  gameState.paused = false;
+  gameState.isCleared = false;
+  gameState.parMoves = puzzle.parMoves;
+
+  // 테마 클래스 적용
+  document.body.classList.remove('mode-bio', 'mode-chem');
+  if (mode === 'bio') document.body.classList.add('mode-bio');
+  if (mode === 'chem') document.body.classList.add('mode-chem');
+
+  // 코돈표 버튼 표시 여부
+  document.getElementById('btn-codon-table').style.display = mode === 'bio' ? 'inline-flex' : 'none';
+  document.getElementById('hud-tier-info').textContent = puzzle.cfg.tierName;
+
+  showScreen('screen-game');
+  buildBoardDOM();
+  updateGameUI(false);
+  startTimer();
+}
+
+/**
+ * 지정된 고리를 왼쪽(-1) 또는 오른쪽(+1)으로 정확히 한 칸 회전합니다.
+ */
+function rotateRing(ringIndex, dir, recordHistory = true) {
+  if (gameState.isCleared || gameState.paused) return;
+  if (ringIndex < 0 || ringIndex >= gameState.ringCount) return;
+
+  const S = gameState.sectorCount;
+  const prevSolvedCount = countSolvedSectors();
+
+  gameState.selectedRing = ringIndex;
+  gameState.offsets[ringIndex] = (gameState.offsets[ringIndex] + dir + S) % S;
+  gameState.visualSteps[ringIndex] += dir;
+
+  if (recordHistory) {
+    gameState.history.push({ ringIndex, dir });
+    gameState.moves += 1;
+  }
+
+  // 힌트 표시 초기화
+  gameState.activeHintRing = -1;
+  gameState.activeHintDir = 0;
+  document.getElementById('hint-banner').classList.remove('active');
+
+  SoundFX.playRotate();
+
+  // 회전 애니메이션 잔상 효과
+  const rotor = document.getElementById(`rotor-${ringIndex}`);
+  if (rotor) {
+    rotor.classList.add('spinning');
+    setTimeout(() => rotor.classList.remove('spinning'), 320);
+  }
+
+  updateGameUI(true);
+
+  const newSolvedCount = countSolvedSectors();
+  if (newSolvedCount > prevSolvedCount && newSolvedCount < S) {
+    SoundFX.playMatch();
+  }
+
+  // 모든 방향 클리어 검사
+  if (newSolvedCount === S) {
+    handleStageClear();
+  }
+}
+
+function countSolvedSectors() {
+  let count = 0;
+  for (let s = 0; s < gameState.sectorCount; s++) {
+    if (evaluateSector(gameState.mode, gameState.rings, gameState.targets, gameState.offsets, s, gameState.sectorCount).solved) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/** 실행 취소 */
+function undoMove() {
+  if (gameState.isCleared || gameState.paused) return;
+  if (gameState.history.length === 0) {
+    showToast('되돌릴 이동 기록이 없습니다.');
+    return;
+  }
+  if (gameState.undoCount >= gameState.maxUndos) {
+    showToast(`이 스테이지는 실행 취소를 최대 ${gameState.maxUndos}회까지만 사용할 수 있습니다.`);
+    return;
+  }
+
+  const last = gameState.history.pop();
+  const S = gameState.sectorCount;
+  gameState.offsets[last.ringIndex] = (gameState.offsets[last.ringIndex] - last.dir + S) % S;
+  gameState.visualSteps[last.ringIndex] -= last.dir;
+  gameState.undoCount += 1;
+  gameState.selectedRing = last.ringIndex;
+
+  SoundFX.playRotate();
+  updateGameUI(true);
+}
+
+/** 현재 스테이지 처음 상태로 다시 시작 */
+function restartStage() {
+  if (gameState.isCleared) return;
+  gameState.offsets = [...gameState.initialOffsets];
+  gameState.visualSteps = [...gameState.initialOffsets];
+  gameState.moves = 0;
+  gameState.undoCount = 0;
+  gameState.history = [];
+  gameState.activeHintRing = -1;
+  gameState.activeHintDir = 0;
+  document.getElementById('hint-banner').classList.remove('active');
+  updateGameUI(false);
+  showToast('퍼즐이 초기 위치로 재설정되었습니다.');
+}
+
+/** 힌트 사용: 정답 기준 회전해야 하는 고리와 방향 표시, 재클릭 시 1칸 자동 회전 */
+function useHint() {
+  if (gameState.isCleared || gameState.paused) return;
+
+  // 이미 힌트가 활성화된 상태에서 한 번 더 누르면 해당 방향으로 1칸 자동 회전
+  if (gameState.activeHintRing !== -1) {
+    const r = gameState.activeHintRing;
+    const d = gameState.activeHintDir;
+    rotateRing(r, d, true);
+    showToast('힌트 안내에 따라 고리를 1칸 회전했습니다.');
+    return;
+  }
+
+  if (gameState.hintsLeft <= 0) {
+    showToast('남은 힌트가 없습니다.');
+    return;
+  }
+
+  const S = gameState.sectorCount;
+  let targetRing = -1;
+  let bestDir = 1;
+
+  for (let r = 0; r < gameState.ringCount; r++) {
+    const diff = (gameState.solutionOffsets[r] - gameState.offsets[r] + S) % S;
+    if (diff !== 0) {
+      targetRing = r;
+      bestDir = diff <= S / 2 ? 1 : -1;
+      break;
+    }
+  }
+
+  if (targetRing === -1) {
+    showToast('현재 배치에서도 조금만 조정하면 해결할 수 있습니다!');
+    return;
+  }
+
+  gameState.hintsLeft -= 1;
+  gameState.selectedRing = targetRing;
+  gameState.activeHintRing = targetRing;
+  gameState.activeHintDir = bestDir;
+
+  const dirText = bestDir === 1 ? '오른쪽 (↻ 시계 방향)' : '왼쪽 (↺ 반시계 방향)';
+  const banner = document.getElementById('hint-banner');
+  banner.innerHTML = `💡 <strong>${gameState.ringNames[targetRing]}</strong>을(를) <strong>${dirText}</strong>으로 회전해 보세요. (힌트 버튼을 한 번 더 누르면 1칸 자동 회전)`;
+  banner.classList.add('active');
+
+  updateGameUI(false);
+}
+
+/** 현재 점수 계산 (0점 미만 방지) */
+function calculateCurrentScore() {
+  const usedHints = getStageConfig(gameState.mode, gameState.stage).hints - gameState.hintsLeft;
+  const base = 1000;
+  const movePenalty = gameState.moves * 10;
+  const hintPenalty = usedHints * 100;
+  const undoPenalty = gameState.undoCount * 5;
+  // 기준 시간(60초) 이내 해결 시 최대 +500점 시간 보너스
+  const timeBonus = Math.max(0, Math.round(500 - gameState.elapsedSeconds * 5));
+  return Math.max(0, base - movePenalty - hintPenalty - undoPenalty + timeBonus);
+}
+
+/** 스테이지 클리어 처리 */
+function handleStageClear() {
+  gameState.isCleared = true;
+  stopTimer();
+  SoundFX.playClear();
+
+  const core = document.getElementById('center-core');
+  if (core) {
+    core.classList.add('unlocked');
+    core.innerHTML = 'UNLOCKED<br>✓';
+  }
+
+  const finalScore = calculateCurrentScore();
+  let stars = 1;
+  if (gameState.moves <= gameState.parMoves) {
+    stars = 3;
+  } else if (gameState.moves <= gameState.parMoves + 4) {
+    stars = 2;
+  }
+
+  // 기록 저장 및 다음 스테이지 잠금 해제
+  const modeProg = userData.progress[gameState.mode];
+  const prevRecord = modeProg.stages[gameState.stage] || { stars: 0, score: 0 };
+  modeProg.stages[gameState.stage] = {
+    stars: Math.max(prevRecord.stars, stars),
+    score: Math.max(prevRecord.score, finalScore)
+  };
+  if (gameState.stage < 20 && modeProg.unlocked <= gameState.stage) {
+    modeProg.unlocked = gameState.stage + 1;
+  }
+  saveUserData();
+  updateHomeProgressUI();
+
+  // 교육 정보 무작위 선택
+  const facts = SCIENCE_FACTS[gameState.mode];
+  const randomFact = facts[Math.floor(Math.random() * facts.length)];
+
+  setTimeout(() => {
+    document.getElementById('clear-stars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    document.getElementById('clear-score').textContent = finalScore.toLocaleString() + '점';
+    document.getElementById('clear-moves').textContent = gameState.moves + '회';
+    document.getElementById('clear-time').textContent = formatTime(gameState.elapsedSeconds);
+    document.getElementById('clear-fact-text').textContent = randomFact;
+
+    const nextBtn = document.getElementById('btn-next-stage');
+    nextBtn.style.display = gameState.stage < 20 ? 'inline-flex' : 'none';
+
+    openModal('modal-clear');
+  }, 550);
+}
+
+function nextStage() {
+  closeModal('modal-clear');
+  if (gameState.stage < 20) {
+    startStage(gameState.mode, gameState.stage + 1);
+  } else {
+    openStageSelect(gameState.mode);
+  }
+}
+
+/* ==========================================================================
+   9. 원형 고리 보드 렌더링 및 UI 업데이트
+   ========================================================================== */
+
+/** 퍼즐 보드의 DOM 요소를 최초 1회 생성합니다. */
+function buildBoardDOM() {
+  const board = document.getElementById('orbit-board');
+  board.innerHTML = '';
+
+  const R = gameState.ringCount;
+  const S = gameState.sectorCount;
+  const boardSize = board.clientWidth || 440;
+  const center = boardSize / 2;
+
+  // 각 고리의 반지름 계산 (안쪽 -> 바깥쪽)
+  const minRadius = boardSize * 0.135;
+  const maxRadius = boardSize * 0.365;
+  const radii = [];
+  for (let r = 0; r < R; r++) {
+    const ratio = R === 1 ? 0.5 : r / (R - 1);
+    radii.push(minRadius + ratio * (maxRadius - minRadius));
+  }
+
+  // 1. 방향 섹터 라인
+  for (let s = 0; s < S; s++) {
+    const deg = (s * 360) / S - 90;
+    const line = document.createElement('div');
+    line.className = 'sector-line';
+    line.id = `sector-line-${s}`;
+    line.style.transform = `translateY(-50%) rotate(${deg}deg)`;
+    board.appendChild(line);
+  }
+
+  // 2. 동심원 궤도 선 및 회전 레이어 + 칸
+  const cellSize = Math.max(30, Math.min(42, Math.floor((maxRadius - minRadius) / Math.max(1.6, R * 0.68))));
+
+  for (let r = 0; r < R; r++) {
+    const radius = radii[r];
+    const color = RING_COLORS[r % RING_COLORS.length];
+
+    const ringCircle = document.createElement('div');
+    ringCircle.className = 'orbit-ring';
+    ringCircle.id = `orbit-ring-${r}`;
+    ringCircle.style.width = `${radius * 2}px`;
+    ringCircle.style.height = `${radius * 2}px`;
+    ringCircle.style.setProperty('--ring-color', color);
+    board.appendChild(ringCircle);
+
+    const rotor = document.createElement('div');
+    rotor.className = 'ring-rotor';
+    rotor.id = `rotor-${r}`;
+    rotor.style.setProperty('--ring-color', color);
+
+    for (let i = 0; i < S; i++) {
+      const baseAngleDeg = (i * 360) / S - 90;
+      const rad = (baseAngleDeg * Math.PI) / 180;
+      const x = Math.cos(rad) * radius;
+      const y = Math.sin(rad) * radius;
+
+      const cell = document.createElement('div');
+      cell.className = 'ring-cell';
+      cell.id = `cell-${r}-${i}`;
+      cell.style.width = `${cellSize}px`;
+      cell.style.height = `${cellSize}px`;
+      cell.style.marginLeft = `${-cellSize / 2}px`;
+      cell.style.marginTop = `${-cellSize / 2}px`;
+      cell.style.fontSize = cellSize < 34 ? '0.78rem' : '0.94rem';
+      cell.style.setProperty('--ring-color', color);
+      cell.style.transform = `translate(${x}px, ${y}px)`;
+
+      // 칸 클릭 시 해당 고리 선택
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        gameState.selectedRing = r;
+        updateGameUI(false);
+      });
+
+      const inner = document.createElement('span');
+      inner.className = 'ring-cell-inner';
+      inner.id = `cell-inner-${r}-${i}`;
+      const rawVal = gameState.rings[r][i];
+      inner.textContent = typeof rawVal === 'object' ? rawVal.label : rawVal;
+
+      cell.appendChild(inner);
+      rotor.appendChild(cell);
+    }
+
+    board.appendChild(rotor);
+  }
+
+  // 3. 바깥쪽 방향별 목표 배지
+  const badgeRadius = boardSize * 0.455;
+  for (let s = 0; s < S; s++) {
+    const angleDeg = (s * 360) / S - 90;
+    const rad = (angleDeg * Math.PI) / 180;
+    const bx = center + Math.cos(rad) * badgeRadius;
+    const by = center + Math.sin(rad) * badgeRadius;
+
+    const badge = document.createElement('div');
+    badge.className = 'target-badge';
+    badge.id = `target-badge-${s}`;
+    badge.style.left = `${bx}px`;
+    badge.style.top = `${by}px`;
+    badge.title = '클릭하여 상세 정보 토글';
+
+    badge.addEventListener('click', () => {
+      if (!gameState.revealedSectors[s]) {
+        gameState.revealedSectors[s] = true;
+        updateGameUI(false);
+      }
+    });
+
+    board.appendChild(badge);
+  }
+
+  // 4. 중앙 코어 자물쇠
+  const core = document.createElement('div');
+  core.className = 'center-core';
+  core.id = 'center-core';
+  core.innerHTML = 'LOCKED<br>🔒';
+  board.appendChild(core);
+}
+
+/** 현재 게임 상태에 맞춰 회전 각도, 목표 배지, 제어 패널, HUD를 갱신합니다. */
+function updateGameUI(animate) {
+  const R = gameState.ringCount;
+  const S = gameState.sectorCount;
+  const stepAngle = 360 / S;
+
+  // 각 방향 평가 결과 계산
+  const evaluations = [];
+  for (let s = 0; s < S; s++) {
+    evaluations.push(evaluateSector(gameState.mode, gameState.rings, gameState.targets, gameState.offsets, s, S));
+  }
+
+  // 1. 고리 회전 각도 및 역회전(글자 똑바로 유지) 적용
+  for (let r = 0; r < R; r++) {
+    const rotor = document.getElementById(`rotor-${r}`);
+    const ringCircle = document.getElementById(`orbit-ring-${r}`);
+    const rotDeg = gameState.visualSteps[r] * stepAngle;
+
+    if (rotor) {
+      rotor.style.transition = animate ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+      rotor.style.transform = `rotate(${rotDeg}deg)`;
+    }
+    if (ringCircle) {
+      ringCircle.classList.toggle('selected', gameState.selectedRing === r);
+      ringCircle.classList.toggle('hint-glow', gameState.activeHintRing === r);
+    }
+
+    for (let i = 0; i < S; i++) {
+      const cell = document.getElementById(`cell-${r}-${i}`);
+      const inner = document.getElementById(`cell-inner-${r}-${i}`);
+      // 현재 이 원소 i가 위치해 있는 방향 s 계산
+      const currentSector = (i + gameState.offsets[r]) % S;
+      const isSectorSolved = evaluations[currentSector].solved;
+
+      if (cell) {
+        cell.classList.toggle('selected-ring', gameState.selectedRing === r);
+        cell.classList.toggle('solved-cell', isSectorSolved);
+      }
+      if (inner) {
+        inner.style.transition = animate ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+        inner.style.transform = `rotate(${-rotDeg}deg)`;
+      }
+    }
+  }
+
+  // 2. 방향 섹터 라인 및 목표 배지 갱신
+  for (let s = 0; s < S; s++) {
+    const ev = evaluations[s];
+    const line = document.getElementById(`sector-line-${s}`);
+    const badge = document.getElementById(`target-badge-${s}`);
+    const isRevealed = gameState.revealedSectors[s];
+
+    if (line) line.classList.toggle('solved', ev.solved);
+    if (!badge) continue;
+
+    badge.className = 'target-badge';
+    if (ev.solved) badge.classList.add('solved');
+
+    if (gameState.mode === 'num') {
+      if (!ev.solved) {
+        badge.classList.add(ev.status === 'low' ? 'low' : 'high');
+      }
+      const cls = ev.status === 'ok' ? 'val-ok' : (ev.status === 'low' ? 'val-low' : 'val-high');
+      const checkMark = ev.solved ? ' ✓' : '';
+      if (isRevealed || ev.solved) {
+        badge.innerHTML = `
+          <span class="target-main">목표 ${ev.targetSum}${checkMark}</span>
+          <span class="target-sub">현재 <span class="${cls}">${ev.currentSum}</span></span>
+        `;
+      } else {
+        badge.innerHTML = `
+          <span class="target-main">목표 ${ev.targetSum}</span>
+          <span class="target-sub">현재 ? (클릭)</span>
+        `;
+      }
+    } else if (gameState.mode === 'bio') {
+      const checkMark = ev.solved ? ' ✓' : '';
+      const augBadge = ev.isAUG ? '<span class="aug-tag">시작</span>' : '';
+      if (isRevealed || ev.solved) {
+        badge.innerHTML = `
+          <span class="target-main">${ev.targetAA}${checkMark}</span>
+          <span class="target-sub"><span class="${ev.solved ? 'val-ok' : ''}">${ev.codon}</span>${augBadge}</span>
+        `;
+      } else {
+        badge.innerHTML = `
+          <span class="target-main">${ev.targetAA}</span>
+          <span class="target-sub">코돈 ? (클릭)</span>
+        `;
+      }
+    } else if (gameState.mode === 'chem') {
+      const checkMark = ev.solved ? ' ✓' : '';
+      if (isRevealed || ev.solved) {
+        let stateLabel = '';
+        if (ev.solved) {
+          stateLabel = '<span class="val-ok">중성(0) ✓</span>';
+        } else if (ev.netCharge === 0 && !ev.isSimplestRatio) {
+          stateLabel = '<span class="val-high">약분 필요</span>';
+        } else {
+          const sign = ev.netCharge > 0 ? `+${ev.netCharge}` : `${ev.netCharge}`;
+          stateLabel = `<span class="${ev.netCharge < 0 ? 'val-low' : 'val-high'}">전하 ${sign}</span>`;
+        }
+        badge.innerHTML = `
+          <span class="target-main">${ev.formulaHTML}${checkMark}</span>
+          <span class="target-sub">${stateLabel}</span>
+        `;
+      } else {
+        badge.innerHTML = `
+          <span class="target-main">${ev.formulaHTML}</span>
+          <span class="target-sub">전하 ? (클릭)</span>
+        `;
+      }
+    }
+  }
+
+  // 3. 우측 고리 제어 장치 목록 갱신
+  const listEl = document.getElementById('ring-controls-list');
+  listEl.innerHTML = '';
+  for (let r = 0; r < R; r++) {
+    const color = RING_COLORS[r % RING_COLORS.length];
+    const row = document.createElement('div');
+    row.className = 'ring-control-row';
+    if (gameState.selectedRing === r) row.classList.add('selected');
+    if (gameState.activeHintRing === r) row.classList.add('hint-target');
+    row.style.setProperty('--ring-color', color);
+
+    row.addEventListener('click', () => {
+      gameState.selectedRing = r;
+      updateGameUI(false);
+    });
+
+    const leftArrow = (gameState.activeHintRing === r && gameState.activeHintDir === -1) ? '⬅️' : '↺';
+    const rightArrow = (gameState.activeHintRing === r && gameState.activeHintDir === 1) ? '➡️' : '↻';
+
+    row.innerHTML = `
+      <div class="ring-label-group">
+        <span class="ring-dot"></span>
+        <span class="ring-name">[${r + 1}] ${gameState.ringNames[r]}</span>
+      </div>
+      <div class="ring-rot-btns">
+        <button class="rot-btn" title="왼쪽 회전" aria-label="왼쪽 회전">${leftArrow}</button>
+        <button class="rot-btn" title="오른쪽 회전" aria-label="오른쪽 회전">${rightArrow}</button>
+      </div>
+    `;
+
+    const btns = row.querySelectorAll('.rot-btn');
+    btns[0].addEventListener('click', (e) => {
+      e.stopPropagation();
+      rotateRing(r, -1, true);
+    });
+    btns[1].addEventListener('click', (e) => {
+      e.stopPropagation();
+      rotateRing(r, 1, true);
+    });
+
+    listEl.appendChild(row);
+  }
+
+  // 4. 상단 HUD 갱신
+  const modeLabel = gameState.mode === 'num' ? '숫자 모드' : (gameState.mode === 'bio' ? '생명과학 모드' : '화학 모드');
+  document.getElementById('hud-mode-stage').textContent = `${modeLabel} · STAGE ${gameState.stage}`;
+  document.getElementById('hud-moves').textContent = gameState.stage >= 6
+    ? `${gameState.moves} / 권장 ${gameState.parMoves}`
+    : `${gameState.moves}`;
+  document.getElementById('hud-score').textContent = calculateCurrentScore().toLocaleString();
+  document.getElementById('hint-count').textContent = gameState.hintsLeft;
+
+  const undoText = gameState.maxUndos === Infinity
+    ? ''
+    : ` (${Math.max(0, gameState.maxUndos - gameState.undoCount)})`;
+  document.getElementById('undo-limit-text').textContent = undoText;
+}
+
+/* ==========================================================================
+   10. 마우스 드래그, 터치 스와이프, 키보드 및 창 리사이즈 제어
+   ========================================================================== */
+function setupBoardGestures() {
+  const board = document.getElementById('orbit-board');
+  let isDragging = false;
+  let activeRing = 0;
+  let startAngle = 0;
+
+  function getPointerAngleAndRing(clientX, clientY) {
+    const rect = board.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    const dist = Math.hypot(dx, dy);
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+    // 거리 기반으로 가장 가까운 고리 선택
+    const boardSize = rect.width;
+    const minRadius = boardSize * 0.135;
+    const maxRadius = boardSize * 0.365;
+    const R = gameState.ringCount;
+    let closestRing = 0;
+    let minDiff = Infinity;
+
+    for (let r = 0; r < R; r++) {
+      const ratio = R === 1 ? 0.5 : r / (R - 1);
+      const radius = minRadius + ratio * (maxRadius - minRadius);
+      const d = Math.abs(dist - radius);
+      if (d < minDiff) {
+        minDiff = d;
+        closestRing = r;
+      }
+    }
+    return { angle, closestRing, dist, maxLimit: boardSize * 0.44 };
+  }
+
+  board.addEventListener('pointerdown', (e) => {
+    if (gameState.isCleared || gameState.paused) return;
+    const info = getPointerAngleAndRing(e.clientX, e.clientY);
+    if (info.dist > info.maxLimit) return;
+
+    isDragging = true;
+    activeRing = info.closestRing;
+    gameState.selectedRing = activeRing;
+    startAngle = info.angle;
+    board.setPointerCapture(e.pointerId);
+    updateGameUI(false);
+  });
+
+  board.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const info = getPointerAngleAndRing(e.clientX, e.clientY);
+    let delta = info.angle - startAngle;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    const stepDeg = 360 / gameState.sectorCount;
+    if (Math.abs(delta) >= stepDeg * 0.65) {
+      const dir = delta > 0 ? 1 : -1;
+      rotateRing(activeRing, dir, true);
+      startAngle = info.angle;
+    }
+  });
+
+  const endDrag = () => {
+    isDragging = false;
+  };
+  board.addEventListener('pointerup', endDrag);
+  board.addEventListener('pointercancel', endDrag);
+}
+
+// 키보드 조작 (숫자키 1~5 고리 선택, 좌우 화살표 회전)
+document.addEventListener('keydown', (e) => {
+  const gameScreen = document.getElementById('screen-game');
+  if (!gameScreen.classList.contains('active')) return;
+  if (document.querySelector('.modal-overlay.active')) return;
+
+  if (e.key >= '1' && e.key <= '5') {
+    const idx = parseInt(e.key, 10) - 1;
+    if (idx < gameState.ringCount) {
+      gameState.selectedRing = idx;
+      updateGameUI(false);
+    }
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    rotateRing(gameState.selectedRing, -1, true);
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    rotateRing(gameState.selectedRing, 1, true);
+  }
+});
+
+// 반응형 화면 크기 변경 시 보드 재계산
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (document.getElementById('screen-game').classList.contains('active')) {
+      buildBoardDOM();
+      updateGameUI(false);
+    }
+  }, 150);
+});
+
+/* ==========================================================================
+   11. 타이머 관리 (중복 실행 원천 차단)
+   ========================================================================== */
+function startTimer() {
+  stopTimer();
+  document.getElementById('hud-time').textContent = formatTime(gameState.elapsedSeconds);
+  gameState.timerId = setInterval(() => {
+    if (!gameState.paused && !gameState.isCleared) {
+      gameState.elapsedSeconds += 1;
+      document.getElementById('hud-time').textContent = formatTime(gameState.elapsedSeconds);
+      document.getElementById('hud-score').textContent = calculateCurrentScore().toLocaleString();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (gameState.timerId !== null) {
+    clearInterval(gameState.timerId);
+    gameState.timerId = null;
+  }
+}
+
+function pauseGame() {
+  if (gameState.isCleared) return;
+  gameState.paused = true;
+  openModal('modal-pause');
+}
+
+function resumeGame() {
+  gameState.paused = false;
+  closeModal('modal-pause');
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+/* ==========================================================================
+   12. 화면 전환 및 팝업 UI 로직
+   ========================================================================== */
+function showScreen(screenId) {
+  if (screenId !== 'screen-game') {
+    stopTimer();
+    document.body.classList.remove('mode-bio', 'mode-chem');
+  }
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+}
+
+function confirmExitToMenu() {
+  stopTimer();
+  showScreen('screen-home');
+  updateHomeProgressUI();
+}
+
+function updateHomeProgressUI() {
+  ['num', 'bio', 'chem'].forEach(mode => {
+    const stages = userData.progress[mode].stages;
+    let clearedCount = 0;
+    let starSum = 0;
+    for (let i = 1; i <= 20; i++) {
+      if (stages[i] && stages[i].stars > 0) {
+        clearedCount++;
+        starSum += stages[i].stars;
+      }
+    }
+    document.getElementById(`prog-${mode}-stage`).textContent = `클리어: ${clearedCount} / 20`;
+    document.getElementById(`prog-${mode}-stars`).textContent = `★ ${starSum} / 60`;
+  });
+}
+
+function openStageSelect(mode) {
+  gameState.mode = mode;
+  const titles = {
+    num: '숫자 모드 - 스테이지 선택',
+    bio: '생명과학 모드 - 스테이지 선택',
+    chem: '화학 모드 - 스테이지 선택'
+  };
+  document.getElementById('stage-select-title').textContent = titles[mode];
+
+  const grid = document.getElementById('stage-grid');
+  grid.innerHTML = '';
+
+  const modeData = userData.progress[mode];
+  for (let s = 1; s <= 20; s++) {
+    const isLocked = s > modeData.unlocked;
+    const record = modeData.stages[s];
+    const stars = record ? record.stars : 0;
+
+    let tierText = '입문';
+    if (s >= 6 && s <= 10) tierText = '응용';
+    else if (s >= 11 && s <= 15) tierText = '심화';
+    else if (s >= 16) tierText = '마스터';
+
+    const item = document.createElement('div');
+    item.className = 'stage-item';
+    if (isLocked) item.classList.add('locked');
+    if (stars > 0) item.classList.add('cleared');
+
+    item.innerHTML = `
+      <span class="stage-tier">${tierText}</span>
+      <span class="stage-num">${isLocked ? '🔒' : 'STAGE ' + s}</span>
+      <span class="stage-stars">${stars > 0 ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : '☆☆☆'}</span>
+      <span class="stage-score">${record ? record.score.toLocaleString() + '점' : (isLocked ? '잠금' : '도전 가능')}</span>
+    `;
+
+    if (!isLocked) {
+      item.addEventListener('click', () => startStage(mode, s));
+    }
+
+    grid.appendChild(item);
+  }
+
+  showScreen('screen-stages');
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._tid);
+  toast._tid = setTimeout(() => toast.classList.remove('show'), 2400);
+}
+
+/* ==========================================================================
+   13. 도움말 탭 및 코돈표 팝업 초기화
+   ========================================================================== */
+const HELP_CONTENTS = {
+  common: `
+    <h4>🎯 게임 목표</h4>
+    <p>중앙에서 바깥쪽으로 뻗어 나가는 모든 방향의 조건을 <strong>동시에 만족</strong>시키면 자물쇠가 해제됩니다.</p>
+    <h4>🕹️ 조작 방법</h4>
+    <ul>
+      <li><strong>버튼 회전:</strong> 우측 궤도 제어 장치의 ↺(왼쪽), ↻(오른쪽) 버튼을 누르면 고리가 1칸씩 회전합니다.</li>
+      <li><strong>드래그 / 스와이프:</strong> 원형 고리를 마우스로 드래그하거나 손가락으로 좌우로 밀어 회전할 수 있습니다.</li>
+      <li><strong>키보드:</strong> 숫자키 <code>1~5</code>로 고리를 선택하고 <code>←</code> / <code>→</code> 방향키로 회전합니다.</li>
+    </ul>
+    <div class="help-example">
+      💡 한 고리를 돌리면 모든 방향의 값이 함께 바뀌므로, 여러 방향의 관계를 동시에 추론해 보세요!
+    </div>
+  `,
+  num: `
+    <h4>∑ 숫자 모드 규칙</h4>
+    <ul>
+      <li>각 방향에 놓인 안쪽부터 바깥쪽까지의 <strong>모든 숫자의 합</strong>이 바깥쪽 <strong>목표 합계</strong>와 같아야 합니다.</li>
+      <li>현재 합계가 목표와 같으면 <span class="val-ok">초록색</span>, 목표보다 작으면 <span class="val-low">파란색</span>, 목표보다 크면 <span class="val-high">빨간색</span>으로 표시됩니다.</li>
+      <li>스테이지가 올라가면 고리 개수(3~5개)와 방향 수(6~8방향)가 증가합니다.</li>
+    </ul>
+    <div class="help-example">
+      <strong>예시:</strong> 안쪽 3 + 가운데 5 + 바깥 4 = <strong>12</strong> → 목표 합계가 12라면 해당 방향은 초록색으로 빛납니다.
+    </div>
+  `,
+  bio: `
+    <h4>🧬 생명과학 모드: 유전자 암호 자물쇠</h4>
+    <ul>
+      <li>총 3개의 고리(안쪽: 1번 염기, 가운데: 2번 염기, 바깥쪽: 3번 염기)로 이루어집니다.</li>
+      <li>안쪽부터 바깥쪽으로 세 염기를 읽어 만든 <strong>mRNA 코돈</strong>이 목표 <strong>아미노산</strong>(또는 종결)과 일치해야 합니다.</li>
+      <li>같은 아미노산을 지정하는 다른 코돈(예: UUU와 UUC 모두 페닐알라닌)을 만들어도 정답으로 인정됩니다.</li>
+    </ul>
+    <div class="help-example">
+      <strong>예시:</strong> 안쪽 <strong>A</strong> + 가운데 <strong>U</strong> + 바깥 <strong>G</strong> = 코돈 <strong>AUG</strong> → <strong>메싸이오닌</strong> 지정!
+    </div>
+  `,
+  chem: `
+    <h4>⚗️ 화학 모드: 이온 자물쇠</h4>
+    <ul>
+      <li>4개의 고리(1: 양이온, 2: 양이온 개수, 3: 음이온, 4: 음이온 개수)로 구성됩니다.</li>
+      <li><code>(양이온 전하 × 양이온 개수) + (음이온 전하 × 음이온 개수) = 0</code>이 되어야 합니다.</li>
+      <li><strong>주의:</strong> 전체 전하가 0이더라도 <code>Na₂Cl₂</code>처럼 약분 가능한 비율은 정답이 아니며, <code>NaCl</code>처럼 <strong>가장 간단한 정수비</strong>여야 합니다.</li>
+    </ul>
+    <div class="help-example">
+      <strong>예시:</strong> <strong>Al³⁺</strong> 2개(+6)와 <strong>O²⁻</strong> 3개(-6)가 만나면 전체 전하가 0이 되어 <strong>Al₂O₃</strong>가 완성됩니다.
+    </div>
+  `
+};
+
+function switchHelpTab(tabKey, btnEl) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  document.getElementById('help-body').innerHTML = HELP_CONTENTS[tabKey];
+}
+
+function buildCodonTableModal() {
+  const container = document.getElementById('codon-table-container');
+  const grouped = {};
+  Object.entries(CODON_TO_AA).forEach(([codon, aa]) => {
+    if (!grouped[aa]) grouped[aa] = [];
+    grouped[aa].push(codon);
+  });
+
+  container.innerHTML = '';
+  Object.entries(grouped).forEach(([aa, codons]) => {
+    const card = document.createElement('div');
+    card.className = 'codon-card';
+    card.innerHTML = `
+      <div class="codon-aa ${aa === '종결' ? 'stop' : ''}">${aa}</div>
+      <div class="codon-list">${codons.join(', ')}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+/* ==========================================================================
+   14. 배경 우주 / 과학 입자 애니메이션 캔버스
+   ========================================================================== */
+function initBackgroundParticles() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let width = (canvas.width = window.innerWidth);
+  let height = (canvas.height = window.innerHeight);
+
+  const particles = Array.from({ length: 42 }, () => ({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    r: Math.random() * 2 + 0.6,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+    alpha: Math.random() * 0.5 + 0.15
+  }));
+
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  });
+
+  function render() {
+    ctx.clearRect(0, 0, width, height);
+    const reduced = userData.settings.reduceMotion;
+
+    for (const p of particles) {
+      if (!reduced) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(140, 210, 255, ${p.alpha})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(render);
+  }
+  render();
+}
+
+/* ==========================================================================
+   15. 초기 실행
+   ========================================================================== */
+window.addEventListener('DOMContentLoaded', () => {
+  loadUserData();
+  setupBoardGestures();
+  switchHelpTab('common', document.querySelector('.tab-btn'));
+  buildCodonTableModal();
+  initBackgroundParticles();
+});
+</script>
+</body>
+</html>
